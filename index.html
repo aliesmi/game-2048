@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2048 نئون - نسخه حرفه‌ای</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  :root {
+    --bg-1: #0f0c29;
+    --bg-2: #302b63;
+    --bg-3: #24243e;
+    --grid-bg: rgba(255, 255, 255, 0.05);
+    --cell-empty: rgba(255, 255, 255, 0.07);
+    --accent: #00e5ff;
+    --gold: #ffd700;
+  }
+
+  body {
+    font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, var(--bg-1), var(--bg-2), var(--bg-3));
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    overflow-x: hidden;
+    padding: 10px;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .game-container {
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  .title {
+    font-size: 42px;
+    font-weight: 900;
+    background: linear-gradient(90deg, #00e5ff, #ff00e5, #ffd700);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 3s linear infinite;
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(0, 229, 255, 0.3);
+  }
+
+  @keyframes shine {
+    to { background-position: 200% center; }
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 2px;
+  }
+
+  .scores {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .score-box {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .score-box .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .score-box .value {
+    font-size: 24px;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+
+  .score-box.best .value { color: var(--gold); }
+  .score-box.combo .value { color: var(--accent); }
+
+  .score-add {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 16px;
+    opacity: 0;
+    animation: scoreFloat 0.8s ease-out;
+  }
+
+  @keyframes scoreFloat {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-25px); }
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-family: inherit;
+  }
+
+  .btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+  .btn:active { transform: scale(0.96); }
+  .btn.primary {
+    background: linear-gradient(135deg, #00e5ff, #0088ff);
+    box-shadow: 0 4px 15px rgba(0,229,255,0.3);
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    background: rgba(0,0,0,0.2);
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .mode-tab.active {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+  }
+
+  .grid-container {
+    background: var(--grid-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 12px;
+    position: relative;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    touch-action: none;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    position: relative;
+  }
+
+  .cell-bg {
+    aspect-ratio: 1;
+    background: var(--cell-empty);
+    border-radius: 12px;
+  }
+
+  .tile-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .tile {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-weight: 800;
+    transition: all 0.13s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .tile.new { animation: appear 0.2s ease; }
+  .tile.merged { animation: pop 0.2s ease; }
+
+  @keyframes appear {
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  /* رنگ کاشی‌ها */
+  .t2    { background: linear-gradient(135deg,#e0e0ff,#c0c0ff); color:#302b63; }
+  .t4    { background: linear-gradient(135deg,#b3e5ff,#80d0ff); color:#0a3d62; }
+  .t8    { background: linear-gradient(135deg,#66ffcc,#33ffaa); color:#003d33; }
+  .t16   { background: linear-gradient(135deg,#7cffb2,#2aff88); color:#00331a; box-shadow:0 0 15px rgba(42,255,136,0.4); }
+  .t32   { background: linear-gradient(135deg,#ffe066,#ffcc00); color:#4d3800; box-shadow:0 0 15px rgba(255,204,0,0.4); }
+  .t64   { background: linear-gradient(135deg,#ffb347,#ff8800); color:#4d2600; box-shadow:0 0 18px rgba(255,136,0,0.5); }
+  .t128  { background: linear-gradient(135deg,#ff7e5f,#ff4757); color:#fff; box-shadow:0 0 20px rgba(255,71,87,0.5); }
+  .t256  { background: linear-gradient(135deg,#ff5e9e,#ff1493); color:#fff; box-shadow:0 0 22px rgba(255,20,147,0.6); }
+  .t512  { background: linear-gradient(135deg,#c56cf0,#8e44ff); color:#fff; box-shadow:0 0 25px rgba(142,68,255,0.6); }
+  .t1024 { background: linear-gradient(135deg,#5f9eff,#0088ff); color:#fff; box-shadow:0 0 28px rgba(0,136,255,0.7); }
+  .t2048 { background: linear-gradient(135deg,#00e5ff,#00ffcc); color:#003333; box-shadow:0 0 35px rgba(0,229,255,0.9); animation: glow2048 1.5s infinite; }
+  .tbig  { background: linear-gradient(135deg,#fff,#ffd700); color:#4d3800; box-shadow:0 0 40px rgba(255,215,0,1); animation: glow2048 1.5s infinite; }
+
+  @keyframes glow2048 {
+    0%,100% { filter: brightness(1); }
+    50% { filter: brightness(1.3); }
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15,12,41,0.92);
+    border-radius: 16px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    backdrop-filter: blur(5px);
+  }
+  .overlay.show { display: flex; }
+  .overlay h2 { font-size: 34px; margin-bottom: 8px; }
+  .overlay p { color: rgba(255,255,255,0.7); margin-bottom: 20px; font-size: 15px; }
+
+  .timer-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    display: none;
+  }
+  .timer-bar.show { display: block; }
+  .timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg,#00e5ff,#ff00e5);
+    width: 100%;
+    transition: width 1s linear;
+  }
+
+  .achievements {
+    margin-top: 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 30px;
+  }
+  .badge {
+    padding: 5px 10px;
+    background: rgba(255,215,0,0.15);
+    border: 1px solid rgba(255,215,0,0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--gold);
+    animation: appear 0.3s ease;
+  }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: linear-gradient(135deg,#00e5ff,#0088ff);
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-weight: 700;
+    box-shadow: 0 8px 30px rgba(0,229,255,0.5);
+    z-index: 100;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<div class="game-container">
+  <div class="header">
+    <div class="title">2048 نئون</div>
+    <div class="subtitle">✨ کاشی‌ها رو ترکیب کن، رکورد بزن! ✨</div>
+  </div>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="classic">🎯 کلاسیک</button>
+    <button class="mode-tab" data-mode="timed">⏱️ چالش زمانی</button>
+    <button class="mode-tab" data-mode="zen">🧘 آرامش</button>
+  </div>
+
+  <div class="scores">
+    <div class="score-box">
+      <div class="label">امتیاز</div>
+      <div class="value" id="score">0</div>
+      <span class="score-add" id="scoreAdd"></span>
+    </div>
+    <div class="score-box combo">
+      <div class="label">کمبو 🔥</div>
+      <div class="value" id="combo">x1</div>
+    </div>
+    <div class="score-box best">
+      <div class="label">رکورد 🏆</div>
+      <div class="value" id="best">0</div>
+    </div>
+  </div>
+
+  <div class="timer-bar" id="timerBar"><div class="timer-fill" id="timerFill"></div></div>
+
+  <div class="controls">
+    <button class="btn primary" id="newGame">🔄 بازی جدید</button>
+    <button class="btn" id="undo">↩️ برگشت</button>
+  </div>
+
+  <div class="grid-container" id="gridContainer">
+    <div class="grid" id="grid"></div>
+    <div class="tile-layer" id="tileLayer"></div>
+    <div class="overlay" id="overlay">
+      <h2 id="overlayTitle">🎉 عالی بود!</h2>
+      <p id="overlayText">امتیاز شما ثبت شد</p>
+      <button class="btn primary" id="overlayBtn" style="max-width:200px">دوباره بازی کن</button>
+    </div>
+  </div>
+
+  <div class="achievements" id="achievements"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SIZE = 4;
+let grid, score, best, combo, comboTimer, history, gameMode, timerInterval, timeLeft, unlockedBadges;
+
+const gridEl = document.getElementById('grid');
+const tileLayer = document.getElementById('tileLayer');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const comboEl = document.getElementById('combo');
+const overlay = document.getElementById('overlay');
+const container = document.getElementById('gridContainer');
+
+// دستاوردها
+const BADGES = [
+  { id: 128, name: '🥉 قهرمان ۱۲۸' },
+  { id: 256, name: '🥈 استاد ۲۵۶' },
+  { id: 512, name: '🥇 نابغه ۵۱۲' },
+  { id: 1024, name: '💎 افسانه ۱۰۲۴' },
+  { id: 2048, name: '👑 پادشاه ۲۰۴۸' },
+  { id: 4096, name: '🌟 خدای بازی ۴۰۹۶' },
+];
+
+// ساخت پس‌زمینه شبکه
+function buildGridBg() {
+  gridEl.innerHTML = '';
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell-bg';
+    gridEl.appendChild(c);
+  }
+}
+
+function loadBest() {
+  best = parseInt(localStorage.getItem('best2048_' + gameMode) || '0');
+  bestEl.textContent = best;
+}
+
+function loadBadges() {
+  unlockedBadges = JSON.parse(localStorage.getItem('badges2048') || '[]');
+  renderBadges();
+}
+
+function renderBadges() {
+  const el = document.getElementById('achievements');
+  el.innerHTML = '';
+  BADGES.forEach(b => {
+    if (unlockedBadges.includes(b.id)) {
+      const badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.textContent = b.name;
+      el.appendChild(badge);
+    }
+  });
+}
+
+function init() {
+  grid = Array.from({length: SIZE}, () => Array(SIZE).fill(0));
+  score = 0;
+  combo = 0;
+  history = [];
+  overlay.classList.remove('show');
+  loadBest();
+  addRandomTile();
+  addRandomTile();
+  render();
+  updateScore(0);
+  updateCombo(true);
+  if (gameMode === 'timed') startTimer();
+  else stopTimer();
+}
+
+function addRandomTile() {
+  const empty = [];
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++)
+      if (grid[r][c] === 0) empty.push({r, c});
+  if (empty.length === 0) return;
+  const {r, c} = empty[Math.floor(Math.random() * empty.length)];
+  grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+  return {r, c};
+}
+
+function getTileClass(v) {
+  if (v > 2048) return 'tbig';
+  return 't' + v;
+}
+
+function render(newTiles = [], mergedTiles = []) {
+  tileLayer.innerHTML = '';
+  const containerW = gridEl.offsetWidth;
+  const gap = 12;
+  const cellSize = (containerW - gap * (SIZE - 1)) / SIZE;
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const v = grid[r][c];
+      if (v === 0) continue;
+      const tile = document.createElement('div');
+      tile.className = 'tile ' + getTileClass(v);
+      if (newTiles.some(t => t.r === r && t.c === c)) tile.classList.add('new');
+      if (mergedTiles.some(t => t.r === r && t.c === c)) tile.classList.add('merged');
+      tile.style.width = cellSize + 'px';
+      tile.style.height = cellSize + 'px';
+      tile.style.left = c * (cellSize + gap) + 'px';
+      tile.style.top = r * (cellSize + gap) + 'px';
+      tile.style.fontSize = (v < 100 ? cellSize*0.42 : v < 1000 ? cellSize*0.35 : cellSize*0.28) + 'px';
+      tile.textContent = v;
+      tileLayer.appendChild(tile);
+    }
+  }
+}
+
+function updateScore(add) {
+  scoreEl.textContent = score;
+  if (add > 0) {
+    const el = document.getElementById('scoreAdd');
+    el.textContent = '+' + add;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'scoreFloat 0.8s ease-out';
+  }
+  if (score > best) {
+    best = score;
+    bestEl.textContent = best;
+    localStorage.setItem('best2048_' + gameMode, best);
+  }
+}
+
+function updateCombo(reset) {
+  if (reset) combo = 0;
+  comboEl.textContent = 'x' + (combo + 1);
+  clearTimeout(comboTimer);
+  if (!reset) {
+    comboTimer = setTimeout(() => { combo = 0; comboEl.textContent = 'x1'; }, 3000);
+  }
+}
+
+// حرکت
+function move(dir) {
+  if (overlay.classList.contains('show')) return;
+  const prev = JSON.stringify(grid);
+  const prevScore = score;
+  let moved = false;
+  let mergedTiles = [];
+  let gained = 0;
+  let mergeCount = 0;
+
+  const rotated = rotateForDir(grid, dir);
+
+  for (let r = 0; r < SIZE; r++) {
+    let row = rotated[r].filter(v => v !== 0);
+    for (let i = 0; i < row.length - 1; i++) {
+      if (row[i] === row[i + 1]) {
+        row[i] *= 2;
+        gained += row[i];
+        mergeCount++;
+        checkBadge(row[i]);
+        row[i + 1] = 0;
+      }
+    }
+    row = row.filter(v => v !== 0);
+    while (row.length < SIZE) row.push(0);
+    rotated[r] = row;
+  }
+
+  grid = rotateBack(rotated, dir);
+
+  if (JSON.stringify(grid) !== prev) moved = true;
+
+  if (moved) {
+    history.push({ grid: JSON.parse(prev), score: prevScore, combo });
+    if (history.length > 10) history.shift();
+
+    if (mergeCount > 0) {
+      combo++;
+      const comboMultiplier = 1 + combo * 0.5;
+      gained = Math.floor(gained * comboMultiplier);
+      updateCombo(false);
+      spawnParticles(mergeCount);
+    } else {
+      combo = 0;
+      updateCombo(true);
+    }
+
+    score += gained;
+    const newTile = addRandomTile();
+    render(newTile ? [newTile] : [], mergedTiles);
+    updateScore(gained);
+
+    if (isGameOver()) endGame(false);
+  }
+}
+
+// چرخش شبکه برای هندل کردن جهت‌ها
+function rotateForDir(g, dir) {
+  let m = g.map(row => [...row]);
+  if (dir === 'right') m = m.map(row => row.reverse());
+  else if (dir === 'up') m = transpose(m);
+  else if (dir === 'down') m = transpose(m).map(row => row.reverse());
+  return m;
+}
+function rotateBack(m, dir) {
+  if (dir === 'right') return m.map(row => row.reverse());
+  else if (dir === 'up') return transpose(m);
+  else if (dir === 'down') return transpose(m.map(row => row.reverse()));
+  return m;
+}
+function transpose(m) {
+  return m[0].map((_, i) => m.map(row => row[i]));
+}
+
+function isGameOver() {
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === 0) return false;
+      if (c < SIZE - 1 && grid[r][c] === grid[r][c + 1]) return false;
+      if (r < SIZE - 1 && grid[r][c] === grid[r + 1][c]) return false;
+    }
+  return true;
+}
+
+function endGame(win) {
+  document.getElementById('overlayTitle').textContent = win ? '🎉 برنده شدی!' : '😔 بازی تمام شد';
+  let msg = `امتیاز: ${score}`;
+  if (score >= best) msg = `🏆 رکورد جدید: ${score}!`;
+  document.getElementById('overlayText').textContent = msg;
+  overlay.classList.add('show');
+  stopTimer();
+}
+
+function checkBadge(value) {
+  const badge = BADGES.find(b => b.id === value);
+  if (badge && !unlockedBadges.includes(value)) {
+    unlockedBadges.push(value);
+    localStorage.setItem('badges2048', JSON.stringify(unlockedBadges));
+    renderBadges();
+    showToast('🏆 دستاورد جدید: ' + badge.name);
+  }
+}
+
+// Undo
+function undo() {
+  if (history.length === 0) return;
+  const last = history.pop();
+  grid = last.grid;
+  score = last.score;
+  combo = last.combo;
+  overlay.classList.remove('show');
+  render();
+  updateScore(0);
+  updateCombo(true);
+}
+
+// تایمر برای حالت چالش زمانی
+function startTimer() {
+  document.getElementById('timerBar').classList.add('show');
+  timeLeft = 60;
+  updateTimerBar();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerBar();
+    if (timeLeft <= 0) endGame(false);
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInterval);
+  document.getElementById('timerBar').classList.remove('show');
+}
+function updateTimerBar() {
+  document.getElementById('timerFill').style.width = (timeLeft / 60 * 100) + '%';
+}
+
+// Toast
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ذرات
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas() { canvas.width = innerWidth; canvas.height = innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); render(); });
+
+function spawnParticles(count) {
+  const rect = container.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const colors = ['#00e5ff','#ff00e5','#ffd700','#2aff88'];
+  for (let i = 0; i < count * 8; i++) {
+    particles.push({
+      x: cx, y: cy,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      life: 1,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 4 + 2
+    });
+  }
+}
+
+function animateParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= 0.02;
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+// کنترل‌ها
+document.addEventListener('keydown', e => {
+  const map = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' };
+  if (map[e.key]) { e.preventDefault(); move(map[e.key]); }
+  if (e.key === 'z' || e.key === 'Z') undo();
+});
+
+// لمسی
+let touchStart = null;
+container.addEventListener('touchstart', e => {
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}, {passive: true});
+container.addEventListener('touchend', e => {
+  if (!touchStart) return;
+  const dx = e.changedTouches[0].clientX - touchStart.x;
+  const dy = e.changedTouches[0].clientY - touchStart.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+  if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'right' : 'left');
+  else move(dy > 0 ? 'down' : 'up');
+  touchStart = null;
+}, {passive: true});
+
+document.getElementById('newGame').onclick = init;
+document.getElementById('undo').onclick = undo;
+document.getElementById('overlayBtn').onclick = init;
+
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    gameMode = tab.dataset.mode;
+    init();
+  };
+});
+
+// شروع
+gameMode = 'classic';
+buildGridBg();
+loadBadges();
+init();
+</script>
+</body>
+</html>
